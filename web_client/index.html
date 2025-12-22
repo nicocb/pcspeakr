@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PCSpeakr - BLE Melody Player</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+
+        .status-dot.connected {
+            background: #44ff44;
+            box-shadow: 0 0 10px #44ff44;
+        }
+
+        #connectBtn {
+            padding: 12px 30px;
+            font-size: 1.1em;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: none;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #connectBtn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        #connectBtn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .game-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .game-card img {
+            width: 100%;
+            max-width: 200px;
+            height: 150px;
+            object-fit: contain;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            image-rendering: pixelated;
+        }
+
+        .game-card h3 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .game-card .info {
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        .game-card button {
+            padding: 10px 25px;
+            font-size: 1em;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            margin: 5px;
+        }
+
+        .game-card button:hover:not(:disabled) {
+            transform: scale(1.05);
+            background: linear-gradient(135deg, #ff8585, #ff6b6b);
+        }
+
+        .game-card button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .playback-controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .playback-controls button {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .playback-controls button:hover:not(:disabled) {
+            transform: scale(1.05);
+        }
+
+        .playback-controls button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        #playBtn {
+            background: linear-gradient(135deg, #44ff44, #33cc33);
+        }
+
+        #playBtn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #66ff66, #44ff44);
+            box-shadow: 0 0 20px rgba(68, 255, 68, 0.5);
+        }
+
+        #stopBtn {
+            background: linear-gradient(135deg, #ff4444, #cc3333);
+        }
+
+        #stopBtn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #ff6666, #ff4444);
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.5);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 15px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar.active {
+            display: block;
+        }
+
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #44ff44);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .log {
+            max-width: 1200px;
+            margin: 30px auto 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 0.85em;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log p {
+            margin: 3px 0;
+            color: #aaa;
+        }
+
+        .log p.error {
+            color: #ff6b6b;
+        }
+
+        .log p.success {
+            color: #44ff44;
+        }
+
+        #cheatBtn {
+            display: block;
+            margin: 40px auto 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
+            border: 2px solid #333;
+            color: #555;
+            font-size: 2em;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        #cheatBtn:hover {
+            border-color: #ff4400;
+            animation: burn 0.5s infinite;
+            box-shadow:
+                0 0 20px rgba(255, 100, 0, 0.6),
+                0 0 40px rgba(255, 50, 0, 0.4),
+                0 0 60px rgba(255, 0, 0, 0.2);
+        }
+
+        @keyframes burn {
+            0% {
+                color: #ff0000;
+                text-shadow: 0 0 10px #ff0000, 0 0 20px #ff4400;
+            }
+            25% {
+                color: #ff4400;
+                text-shadow: 0 0 10px #ff4400, 0 0 20px #ff8800;
+            }
+            50% {
+                color: #ffaa00;
+                text-shadow: 0 0 10px #ffaa00, 0 0 20px #ffcc00;
+            }
+            75% {
+                color: #ff6600;
+                text-shadow: 0 0 10px #ff6600, 0 0 20px #ff4400;
+            }
+            100% {
+                color: #ff0000;
+                text-shadow: 0 0 10px #ff0000, 0 0 20px #ff4400;
+            }
+        }
+
+        #cheatModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #cheatModal.active {
+            display: flex;
+            animation: crtOn 0.2s;
+        }
+
+        @keyframes crtOn {
+            0% { opacity: 0; filter: brightness(10); }
+            50% { opacity: 1; filter: brightness(2); }
+            100% { opacity: 1; filter: brightness(1); }
+        }
+
+        #cheatModal input {
+            padding: 20px 30px;
+            font-size: 2em;
+            font-family: 'Courier New', monospace;
+            text-transform: uppercase;
+            background: #000;
+            border: 3px solid #00ff00;
+            color: #00ff00;
+            border-radius: 0;
+            text-align: center;
+            letter-spacing: 8px;
+            box-shadow:
+                0 0 20px rgba(0, 255, 0, 0.3),
+                inset 0 0 30px rgba(0, 255, 0, 0.1);
+            text-shadow: 0 0 10px #00ff00;
+        }
+
+        #cheatModal input::placeholder {
+            color: #004400;
+        }
+
+        #cheatModal input:focus {
+            outline: none;
+            border-color: #00ff00;
+            box-shadow:
+                0 0 30px rgba(0, 255, 0, 0.5),
+                0 0 60px rgba(0, 255, 0, 0.3),
+                inset 0 0 30px rgba(0, 255, 0, 0.1);
+            animation: scanline 0.1s linear infinite;
+        }
+
+        @keyframes scanline {
+            0% { background: linear-gradient(transparent 50%, rgba(0, 255, 0, 0.05) 50%); background-size: 100% 4px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>PCSpeakr</h1>
+    <p class="subtitle">Retro Game Music via Bluetooth LE</p>
+
+    <div class="status-bar">
+        <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Disconnected</span>
+        </div>
+        <button id="connectBtn">Connect to PCSpeakr</button>
+    </div>
+
+    <div class="playback-controls">
+        <button id="playBtn" disabled>Play</button>
+        <button id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="games-grid" id="gamesGrid">
+        <!-- Games loaded dynamically from games/games.json -->
+    </div>
+
+    <button id="cheatBtn">&#9760;</button>
+    <div id="cheatModal">
+        <input type="text" id="cheatInput" placeholder="CODE" maxlength="10" autocomplete="off">
+    </div>
+
+    <script>
+        /*
+         * =============================================
+         * HOW TO ADD A NEW GAME
+         * =============================================
+         * 1. Create folder: games/{id}/
+         * 2. Add icon:      games/{id}/icon.png
+         * 3. Add binary:    games/{id}/binary
+         * 4. Edit games/games.json:
+         *    { "id": "your-game", "name": "Your Game Name" }
+         * That's it! The game will appear automatically.
+         * =============================================
+         */
+
+        // BLE UUIDs (must match Arduino code)
+        const SERVICE_UUID = '12345678-1234-1234-1234-123456789abc';
+        const CHAR_DATA_UUID = '12345678-1234-1234-1234-123456789abd';
+        const CHAR_CONTROL_UUID = '12345678-1234-1234-1234-123456789abe';
+
+        // Commands
+        const CMD_START_UPLOAD = 0x01;
+        const CMD_END_UPLOAD = 0x02;
+        const CMD_PLAY = 0x03;
+        const CMD_STOP = 0x04;
+
+        // State
+        let device = null;
+        let server = null;
+        let dataChar = null;
+        let controlChar = null;
+        let games = [];
+        let gameData = {};
+
+        // DOM elements
+        const connectBtn = document.getElementById('connectBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const logDiv = document.getElementById('log');
+        const gamesGrid = document.getElementById('gamesGrid');
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        function log(msg, type = '') {
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            if (type) p.className = type;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        // Load games from JSON config
+        async function loadGames() {
+            try {
+                const response = await fetch('games/games.json');
+                games = await response.json();
+
+                for (const game of games) {
+                    renderGameCard(game);
+                    await loadGameBinary(game);
+                }
+
+                log(`Loaded ${games.length} games`);
+            } catch (e) {
+                log(`Failed to load games: ${e.message}`, 'error');
+            }
+        }
+
+        function renderGameCard(game) {
+            const card = document.createElement('div');
+            card.className = 'game-card';
+            card.dataset.game = game.id;
+
+            card.innerHTML = `
+                <img src="games/${game.id}/icon.png" alt="${game.name}">
+                <h3>${game.name}</h3>
+                ${game.description ? `<p class="desc">${game.description}</p>` : ''}
+                <p class="info">Loading...</p>
+                <button class="upload-btn" disabled>Upload</button>
+                <div class="progress-bar"><div class="fill"></div></div>
+            `;
+
+            card.querySelector('.upload-btn').addEventListener('click', () => uploadMelody(game.id));
+
+            gamesGrid.appendChild(card);
+        }
+
+        async function loadGameBinary(game) {
+            const card = document.querySelector(`[data-game="${game.id}"]`);
+            const info = card.querySelector('.info');
+
+            try {
+                const response = await fetch(`games/${game.id}/binary`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const buffer = await response.arrayBuffer();
+                gameData[game.id] = new Uint8Array(buffer);
+
+                const numNotes = buffer.byteLength / 4;
+                info.textContent = `${numNotes} notes (${(buffer.byteLength / 1024).toFixed(1)} KB)`;
+                log(`Loaded ${game.name}: ${numNotes} notes`);
+            } catch (e) {
+                info.textContent = 'Failed to load';
+                log(`Failed to load ${game.name}: ${e.message}`, 'error');
+            }
+        }
+
+        // BLE Connection
+        async function connect() {
+            try {
+                log('Requesting BLE device...');
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'PCSpeakr' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+
+                log('Connecting to GATT server...');
+                server = await device.gatt.connect();
+
+                log('Getting service...');
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                log('Getting characteristics...');
+                dataChar = await service.getCharacteristic(CHAR_DATA_UUID);
+                controlChar = await service.getCharacteristic(CHAR_CONTROL_UUID);
+
+                await controlChar.startNotifications();
+                controlChar.addEventListener('characteristicvaluechanged', onControlNotify);
+
+                setConnected(true);
+                log('Connected!', 'success');
+
+            } catch (e) {
+                log(`Connection failed: ${e.message}`, 'error');
+                setConnected(false);
+            }
+        }
+
+        function onDisconnected() {
+            log('Disconnected', 'error');
+            setConnected(false);
+        }
+
+        function onControlNotify(event) {
+            const value = new Uint8Array(event.target.value.buffer);
+            if (value[0] === CMD_END_UPLOAD) {
+                const numNotes = value[1] | (value[2] << 8);
+                log(`Upload confirmed: ${numNotes} notes received`, 'success');
+            }
+        }
+
+        function setConnected(connected) {
+            if (connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                connectBtn.textContent = 'Disconnect';
+                document.querySelectorAll('.upload-btn').forEach(btn => btn.disabled = false);
+                playBtn.disabled = false;
+                stopBtn.disabled = false;
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = 'Disconnected';
+                connectBtn.textContent = 'Connect to PCSpeakr';
+                device = null;
+                server = null;
+                dataChar = null;
+                controlChar = null;
+                document.querySelectorAll('.upload-btn').forEach(btn => btn.disabled = true);
+                playBtn.disabled = true;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // Upload melody
+        async function uploadMelody(gameId) {
+            if (!dataChar || !controlChar) {
+                log('Not connected!', 'error');
+                return;
+            }
+
+            const data = gameData[gameId];
+            if (!data) {
+                log(`No data for ${gameId}`, 'error');
+                return;
+            }
+
+            const card = document.querySelector(`[data-game="${gameId}"]`);
+            const progressBar = card.querySelector('.progress-bar');
+            const progressFill = card.querySelector('.fill');
+            const uploadBtn = card.querySelector('.upload-btn');
+            const gameName = games.find(g => g.id === gameId)?.name || gameId;
+
+            try {
+                uploadBtn.disabled = true;
+                progressBar.classList.add('active');
+                progressFill.style.width = '0%';
+
+                log(`Starting upload for ${gameName}...`);
+                await controlChar.writeValue(new Uint8Array([CMD_START_UPLOAD]));
+                await sleep(100);
+
+                const chunkSize = 512;
+                for (let i = 0; i < data.length; i += chunkSize) {
+                    const chunk = data.slice(i, Math.min(i + chunkSize, data.length));
+                    await dataChar.writeValueWithoutResponse(chunk);
+                    progressFill.style.width = `${Math.min(100, ((i + chunk.length) / data.length) * 100)}%`;
+                    await sleep(20);
+                }
+
+                await controlChar.writeValue(new Uint8Array([CMD_END_UPLOAD]));
+                progressFill.style.width = '100%';
+                log(`Upload complete for ${gameName}!`, 'success');
+                sendPlayCommand();
+
+                setTimeout(() => progressBar.classList.remove('active'), 2000);
+
+            } catch (e) {
+                log(`Upload failed: ${e.message}`, 'error');
+                progressBar.classList.remove('active');
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        }
+
+        async function sendPlayCommand() {
+            if (!controlChar) return;
+            try {
+                await controlChar.writeValue(new Uint8Array([CMD_PLAY]));
+                log('Play command sent', 'success');
+            } catch (e) {
+                log(`Play failed: ${e.message}`, 'error');
+            }
+        }
+
+        async function sendStopCommand() {
+            if (!controlChar) return;
+            try {
+                await controlChar.writeValue(new Uint8Array([CMD_STOP]));
+                log('Stop command sent', 'success');
+            } catch (e) {
+                log(`Stop failed: ${e.message}`, 'error');
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Event listeners
+        connectBtn.addEventListener('click', async () => {
+            if (device && device.gatt.connected) {
+                device.gatt.disconnect();
+            } else {
+                await connect();
+            }
+        });
+
+        playBtn.addEventListener('click', () => sendPlayCommand());
+        stopBtn.addEventListener('click', () => sendStopCommand());
+
+        // Cheat code
+        const cheatBtn = document.getElementById('cheatBtn');
+        const cheatModal = document.getElementById('cheatModal');
+        const cheatInput = document.getElementById('cheatInput');
+
+        cheatBtn.addEventListener('click', () => {
+            cheatModal.classList.add('active');
+            cheatInput.value = '';
+            cheatInput.focus();
+        });
+
+        cheatModal.addEventListener('click', (e) => {
+            if (e.target === cheatModal) {
+                cheatModal.classList.remove('active');
+            }
+        });
+
+        cheatInput.addEventListener('keyup', async (e) => {
+            if (e.key === 'Escape') {
+                cheatModal.classList.remove('active');
+                return;
+            }
+            if (cheatInput.value.toUpperCase() === 'BRUTAL') {
+                cheatModal.classList.remove('active');
+                log('CHEAT CODE ACTIVATED: BRUTAL', 'success');
+                await uploadAndPlayBrutal();
+            }
+        });
+
+        async function uploadAndPlayBrutal() {
+            if (!dataChar || !controlChar) {
+                log('Not connected!', 'error');
+                return;
+            }
+            try {
+                const response = await fetch('brutal/binary');
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const buffer = await response.arrayBuffer();
+                const data = new Uint8Array(buffer);
+
+                log('Uploading BRUTAL...');
+                await controlChar.writeValue(new Uint8Array([CMD_START_UPLOAD]));
+                await sleep(100);
+
+                const chunkSize = 512;
+                for (let i = 0; i < data.length; i += chunkSize) {
+                    const chunk = data.slice(i, Math.min(i + chunkSize, data.length));
+                    await dataChar.writeValueWithoutResponse(chunk);
+                    await sleep(20);
+                }
+
+                await controlChar.writeValue(new Uint8Array([CMD_END_UPLOAD]));
+                await sleep(100);
+                await controlChar.writeValue(new Uint8Array([CMD_PLAY]));
+                log('BRUTAL ACTIVATED!', 'success');
+            } catch (e) {
+                log(`BRUTAL failed: ${e.message}`, 'error');
+            }
+        }
+
+        // Init
+        loadGames();
+        log('PCSpeakr Web Client ready');
+    </script>
+</body>
+</html>
