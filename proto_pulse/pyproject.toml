@@ -1,0 +1,9 @@
+[project]
+name = "proto-pulse"
+version = "0.1.0"
+description = "PC Speaker pulse decoder - extracts frequencies from square wave audio"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+pulse-decode = "pulse_decode:main"

@@ -2,8 +2,9 @@
   { "id": "monkey", "name": "Monkey Island" },
   { "id": "lechuck", "name": "Dread pirate Lechuck in Monkey Island" },
   { "id": "monkey2", "name": "Monkey Island 2" },
-  { "id": "princeofpersia", "name": "Prince of Persia" },
   { "id": "indy", "name": "Indiana Jones" },
+  { "id": "loom", "name": "Loom" },
+  { "id": "princeofpersia", "name": "Prince of Persia" },
   { "id": "mario", "name": "Super Mario Bros" },
   { "id": "jumpjoe", "name": "Jump Joe" }
 ]
