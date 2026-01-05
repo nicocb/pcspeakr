@@ -132,7 +132,13 @@ def binarize_edge_detection(
                 binary[k] = state
 
             state = new_state
-            i = best_idx + 1
+            print(f"debug : Edge {new_state} detected at {best_idx}")
+
+            # Fill dead zone with new state to avoid detecting same edge twice
+            dead_zone_end = min(best_idx + window_size, len(samples))
+            for k in range(best_idx, dead_zone_end):
+                binary[k] = state
+            i = dead_zone_end
         else:
             binary[i] = state
             i += 1
@@ -191,6 +197,7 @@ def find_rising_edges(binary_samples: list[int]) -> list[int]:
     for i, sample in enumerate(binary_samples):
         if last_value == 0 and sample == 1:
             edges.append(i)
+            print(f"debug : Rising edge found at {i}")
         last_value = sample
 
     return edges
@@ -238,6 +245,7 @@ def edges_to_note_values(
         if frequency > 0:
             note = round(12 * math.log2(frequency / base_freq))
             note_values.append(note)
+            print(f"debug : Note {note} found between {edges[i]} and {edges[i + 1]}")
 
     return note_values
 
@@ -248,7 +256,7 @@ def group_notes_to_freq_duration(
     sample_rate: int = 44100,
     speed_multiplier: float = 1.0,
     base_freq: float = 55.0,
-    min_cycles: int = 2,
+    min_cycles: int = 1,
 ) -> list[Note]:
     """
     Step 4: Group consecutive cycles with the same note value.
@@ -352,10 +360,11 @@ def smooth_parasites(notes: list[Note], smooth: int) -> list[Note]:
     smoothed = []
     smoothed.append(notes[0])
 
-    for i in range(1, len(notes)-2):
+    for i in range(1, len(notes)-1):
         # remove if short between two same notes 
         if notes[i].dur_ms <= smooth and notes[i-1].freq_hz == notes[i+1].freq_hz :
             notes[i+1].dur_ms += notes[i].dur_ms
+            print(f"debug : Removing note {i} ({str(notes[i])})")
             continue
         smoothed.append(notes[i])
     
